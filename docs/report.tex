@@ -1,0 +1,798 @@
+\documentclass[12pt,a4paper]{article}
+
+% ── Kodowanie i język ──────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+
+% ── Typografia ─────────────────────────────────────────────────────────────────
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+\onehalfspacing
+
+% ── Marginesy ─────────────────────────────────────────────────────────────────
+\usepackage[
+  top=2.5cm, bottom=2.5cm,
+  left=3.0cm, right=2.5cm
+]{geometry}
+
+% ── Matematyka ────────────────────────────────────────────────────────────────
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% ── Grafika i kolory ──────────────────────────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{float}
+\graphicspath{{./plots/}}
+
+% ── Tabele ────────────────────────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{longtable}
+
+% ── Nagłówki sekcji ───────────────────────────────────────────────────────────
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.8em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.7em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{\thesubsubsection.}{0.6em}{}
+
+% ── Hiperłącza ────────────────────────────────────────────────────────────────
+\usepackage[
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  citecolor=black
+]{hyperref}
+
+% ── Nagłówki i stopki ─────────────────────────────────────────────────────────
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Analiza rynku mieszkaniowego w Poznaniu}
+\fancyhead[R]{\small \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Listy ─────────────────────────────────────────────────────────────────────
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=1.5em, itemsep=0.2em}
+
+% ── Podpisy ───────────────────────────────────────────────────────────────────
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf, skip=6pt}
+
+% ── Kolory pomocnicze ─────────────────────────────────────────────────────────
+\definecolor{darkgreen}{RGB}{44,160,44}
+\definecolor{darkred}{RGB}{214,39,40}
+\definecolor{lightgray}{RGB}{245,245,245}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+% ── Strona tytułowa ───────────────────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\LARGE\bfseries Raport z analizy danych\\[0.4em]
+  Ceny mieszkań w Poznaniu\\[0.3em]
+  i analiza transakcji jednostek\\[0.3em]
+  samorządu terytorialnego (JST)\par}
+  \vspace{1.5cm}
+  
+  {\large Analiza rynku mieszkaniowego na podstawie\\
+  Rejestru Cen Nieruchomości, 2011--2025\par}
+  \vspace{2cm}
+  
+  {\large Autor: Mateusz Juszczak\par}
+
+
+  \vfill
+  {\normalsize \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Temat projektu}
+
+Projekt dotyczy analizy rynku mieszkaniowego w Poznaniu na podstawie danych transakcyjnych z lat 2011--2025.
+Głównym celem jest zbudowanie modeli uczenia maszynowego przewidujących cenę 1~m² lokalu mieszkalnego oraz ocena, jakie cechy nieruchomości i otoczenia makroekonomicznego najsilniej wpływają na wycenę.
+
+Rozszerzeniem projektu jest analiza transakcji, w których sprzedającym była jednostka samorządu terytorialnego (JST), i sprawdzenie, czy ceny w~tych transakcjach odbiegały od lokalnych benchmarków rynkowych.
+
+Projekt ma charakter zarówno predykcyjny, jak i interpretacyjny. Celem nie jest samo osiągnięcie jak najniższego błędu modelu, ale też zrozumienie mechanizmów rynkowych i wyodrębnienie interesujących zależności ekonomicznych, przestrzennych i instytucjonalnych z rzeczywistych danych rejestrowych.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Motywacja wyboru zbioru}
+
+Decyzja o wyborze tej tematyki wynikała z dwóch przesłanek.
+Po pierwsze, dane stały się publicznie dostępne stosunkowo niedawno --- obowiązek publikacji Rejestru Cen Nieruchomości stworzył realną możliwość samodzielnej analizy lokalnego rynku mieszkaniowego, do której wcześniej nie było swobodnego dostępu.
+
+Po drugie, temat ma wymiar osobisty. Mając bezpośrednie doświadczenie z poznańskim rynkiem mieszkaniowym, naturalnym krokiem było skonfrontowanie intuicji budowanej przez przeglądanie ofert z wnioskami wynikającymi z~twardych danych rejestrowych.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Źródła danych i budowa zbioru}
+
+Zbiór nie pochodzi z jednego gotowego repozytorium --- został zbudowany przez połączenie kilku źródeł:
+
+\begin{enumerate}
+  \item \textbf{Rejestr Cen Nieruchomości (RCN)} --- akty notarialne dla Poznania z analizowanego okresu, stanowiące rdzeń zbioru.
+  \item \textbf{Dane przestrzenne (GIS)} --- pozwoliły przypisać każdemu lokalowi dzielnicę.
+  \item \textbf{Dane makroekonomiczne (NBP/GUS)} --- inflacja, WIBOR~3M i przeciętne wynagrodzenie.
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Przegląd surowego rynku}
+
+Aby zobrazować rozpiętość poznańskiego rynku oraz zademonstrować charakterystykę surowych danych, wyodrębniono trzy skrajnie odmienne przypadki:
+
+\begin{itemize}
+  \item \textbf{Kawalerka w ścisłym centrum (ul. Strzelecka 27, Stare Miasto):}
+        Lokal o powierzchni 39,16~m² (1~izba), sprzedany 4~marca 2013~roku.
+        Rzeczywista cena transakcyjna, urealniona do wartości z 2025 roku, wyniosła \textbf{15~584~PLN/m²}.
+        Jest to doskonały przykład pokazujący, jak niewielki metraż oraz topowa lokalizacja generują znaczącą premię cenową na rynku nieruchomości.
+
+  \item \textbf{Większe mieszkanie na peryferiach (ul. Karpia 17A, Naramowice):}
+        Lokal o powierzchni 67,27~m² (4~izby), sprzedany 27~stycznia 2011~roku.
+        Cena po waloryzacji wyniosła \textbf{8~877~PLN/m²}.
+        To typowy, racjonalny profil rynkowy dowodzący, że znaczny metraż wielopokojowy i oddalenie od ścisłego centrum drastycznie obniżają jednostkową wycenę lokalu.
+
+  \item \textbf{Anomalia rynkowa (ul. Grudzieniec 11, Sołacz):}
+        Lokal o powierzchni 53,23~m² (3~izby), sprzedany 17~marca 2011~roku.
+        Rzeczywista zwaloryzowana cena wyniosła zaskakująco niskie \textbf{6~164~PLN/m²}.
+        Ten przypadek dobre pokazuje główną słabość opierania się wyłącznie na danych z Rejestru Cen Nieruchomości --- budynek znajduje się w przy drodze grunowej, w bezpośrednim sąsiedztwie wiaduktu kolejowego PST, co może znacznie wpływać na jego wartość.
+\end{itemize}
+
+Powyższe przykłady dowodzą, że rynek poznański to zbiór skrajności, a zadanie wyceny nieruchomości opierając się wyłącznie na ograniczonym zbiorze cech dostępnych w RCN jest zadaniem trudnym, ze względu na brak wielu cech, które mają znaczący wpływ na cenę, ale nie są zawarte w danych.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Potok przetwarzania danych (Data Preparation \& Feature Engineering)}
+
+Surowy zbiór danych zebrany z wielu źródeł wymagał ścisłej selekcji zmiennych. Z początkowej puli usunięto 38 atrybutów, przekształcając i agregując dane tak, aby uniknąć wycieku informacji (\textit{data leakage}) oraz zredukować szum informacyjny.
+
+\subsection{Redukcja i mapowanie zmiennych}
+
+Zbiór oczyszczono według trzech głównych reguł:
+
+\begin{enumerate}
+  \item \textbf{Eliminacja ryzyka wycieku zmiennej celu (\textit{Data Leakage}):}\\
+        Usunięto wszystkie surowe warianty i składowe cen (nominalne, brutto, udziały), zostawiając wyłącznie jedną, finalną zmienną decyzyjną.
+        \smallskip
+        \textit{Odrzucono:}
+        \begin{quote}\small\ttfamily\sloppy
+        cena\_lokalu\_brutto,
+        cena\_nieruchomosci\_brutto,
+        cena\_transakcji\_brutto.
+        \end{quote}
+
+  \item \textbf{Konsolidacja zmiennych metrażowych:}\\
+        Zamiast utrzymywać rozbite dane o powierzchni użytkowej i przynależnej, zmapowano je do jednej, zagregowanej kolumny.
+        \smallskip
+        \textit{Skonsolidowano:}
+        \begin{quote}\small\ttfamily\sloppy
+        powierzchnia\_uzytkowa\_lokalu,
+        powierzchnia\_pomieszczen\_przynaleznych
+        $\rightarrow$ zastąpiono przez powierzchnia\_final.
+        \end{quote}
+
+  \item \textbf{Usunięcie identyfikatorów i danych redundantnych:}\\
+        Odrzucono 17~atrybutów administracyjnych nieprzydatnych dla algorytmów ML --- dane notariuszy, daty dzienne, specyficzne kody budynków i działek, flagi prawne już zakodowane w cechach binarnych.
+        \smallskip
+        \textit{Odrzucono:}
+        \begin{quote}\small\ttfamily\sloppy
+        lokal\_id,
+        nieruchomosc\_id,
+        transakcja\_id,
+        id\_lokalu\_ewidencyjny,
+        notariusz,
+        data\_dokumentu,
+        okres,
+        bud\_rodzaj\_kod,
+        dzialka\_pow\_m2,
+        t\_kupujacy,
+        t\_sprzedajacy,
+        t\_rodzaj\_transakcji,
+        rodzaj\_rynku,
+        bud\_footprint\_m2,
+        bud\_centroid\_x,
+        bud\_centroid\_y,
+        bud\_liczba\_budynkow.
+        \end{quote}
+\end{enumerate}
+
+\subsection{Filtry i maska analityczna}
+
+Rozmiar początkowy surowych danych wynosił aż \textbf{198~854 przypadki}. Zbiór ten był jednak silnie niejednorodny (zawierał m.in. grunty, lokale użytkowe, domy jednorodzinne, hale garażowe oraz transakcje ułamkowe). Aby model mógł uczyć się spójnej logiki wyceny, zdecydowałem się zawęzić zbiór do danych do obserwacji dot. sprzedaży rynkowych typowych mieszkań w budynkach wielorodzinnych. W tym celu wprowadzono maskę analityczną złożoną z~trzech warstw logicznych, stosowanych jednocześnie jako pojedyncza maska boolowska:
+
+\subsubsection*{Warstwa 1: Wstępny filtr cenowy (domenowy)}
+W~pierwszej kolejności odrzucono przypadki o~cenach nierealistycznych z~punktu widzenia rynku mieszkaniowego: poniżej \textbf{1~500~PLN/m²} (symboliczne darowizny, błędy ewidencyjne) oraz powyżej \textbf{30~000~PLN/m²} (ultra-luksusowe apartamenty, których model nie jest w~stanie wycenić bez informacji o~standardzie wykończenia). Progi wyznaczono na podstawie wiedzy domenowej, nie percentyli --- dzięki temu filtr nie wprowadza zależności od rozkładu danych.
+
+\subsubsection*{Warstwa 2: Zdefiniowanie typowego profilu mieszkalnego}
+Ograniczono dane do obserwacji spełniających fizyczne i~prawne definicje ,,typowego mieszkania'', przyjmując następujące założenia:
+\begin{itemize}
+    \item \textbf{Fizyczne prawdopodobieństwo:} Ograniczono analizę do lokali o~całkowitej powierzchni od \textbf{15~m² do maksymalnie 150~m²}. Ustalono również próg od 5~m² do 60~m² na izbę, co pozwoliło oddzielić typową populację mieszkalną od komercyjnej (gdzie dla wielkich lokali użytkowych 95.\ percentyl wynosił aż 507~m²/izbę).
+    \item \textbf{Kondygnacja:} Odrzucono obserwacje z~kondygnacją poniżej zera (piwnice wpisane omyłkowo jako lokale mieszkalne).
+    \item \textbf{Pełne prawo do lokalu:} Wykluczono transakcje ułamkowe (sprzedaż np. 1/4 udziałów w~mieszkaniu), zostawiając tylko pełne zbycie własności lub spółdzielczego własnościowego prawa do lokalu.
+\end{itemize}
+
+\subsubsection*{Warstwa 3: Filtr wolnorynkowy}
+Usunięto wszystkie transakcje, w~których sprzedającym była Jednostka Samorządu Terytorialnego (JST). Transakcje komunalne analizowane są osobno w~sekcji~\ref{sec:jst} jako odrębny aspekt biznesowy.
+
+\medskip
+Po zastosowaniu powyższych trzech warstw maskowania na populacji pozostawiono obserwacje spełniające profil ,,typowego mieszkania wolnorynkowego''. Następnie, w~odrębnym kroku, usunięto skrajne \textbf{2,0\%} obserwacji (percentyle 1.\ i~99.), zawężając zwaloryzowane ceny do przedziału \textbf{od 3~972~PLN/m\textsuperscript{2} do 17~311~PLN/m\textsuperscript{2}}. Obcięcie percentylowe eliminowało:
+\begin{itemize}
+    \item Ukryte darowizny i~sprzedaże wewnątrzrodzinne (skrajnie niskie ceny, nieoznaczone w~RCN).
+    \item Lokale o~niezarejestrowanym standardzie premium, których model nie jest w~stanie wycenić bez cech jakościowych.
+\end{itemize}
+Po zastosowaniu pełnej maski analitycznej i~obcięcia percentylowego uzyskano próbę czysto wolnorynkową liczącą \textbf{38~154 przypadków}. Takie zawężenie było kluczowe --- bez tych założeń algorytmy uczyłyby się kilku różnych rynków (i~błędów w~danych) jednocześnie, co uniemożliwiłoby stworzenie skutecznego modelu predykcyjnego.
+
+\subsection{Obsługa braków danych i kodowanie zmiennych kategorycznych}
+
+Nawet po wstępnym ograniczeniu bazy do prawnie zdefiniowanych transakcji sprzedaży lokali mieszkalnych, zbiór wciąż wymagał ukierunkowanego czyszczenia.
+Profil braków danych (tzw. \textit{missing values}) wyraźnie wskazywał na specyfikę rejestrów urzędowych, wymuszając zastosowanie konkretnych strategii imputacji bezpośrednio w potoku analitycznym:
+
+\begin{itemize}
+    \item \textbf{Cechy ewidencyjne (redukcja wymiarowości):} Skupienie się wyłącznie na lokalach mieszkalnych sprawiło, że atrybuty dotyczące gruntów i całych budynków (np. \texttt{dzialka\_pow\_m2}, \texttt{bud\_footprint\_m2}) osiągnęły 100\% braków. Atrybuty te zostały całkowicie odrzucone jako bezużyteczne dla wybranego segmentu rynku.
+    \item \textbf{Brakujące współrzędne:} Niewielka część przypadków w rejestrze pozbawiona była przypisania przestrzennego. Z uwagi na fakt, że analiza opierała się w dużej mierze na autorskich metrykach odległościowych (m.in. dystans euklidesowy do centrum Poznania), przypadki z pustymi wartościami \texttt{wsp\_x} oraz \texttt{wsp\_y} zostały bezwzględnie usunięte ze zbioru.
+    \item \textbf{Imputacja cech fizycznych:} W odfiltrowanej populacji brakowało danych dla kondygnacji (\texttt{nr\_kondygnacji}, ok. 5,7\%) oraz liczby izb (\texttt{liczba\_izb}, ok. 1,4\%). Zastosowano tu wielopoziomowe uzupełnianie wewnątrz grup. Brakująca liczba izb została bezpiecznie wypełniona wartością mediany dla lokali o zbliżonym metrażu (przy użyciu koszyków decylowych z~zmiennej \texttt{powierzchnia\_final}), co pozwoliło zachować naturalne proporcje architektoniczne mieszkań. Kondygnację uzupełniono medianą globalną.
+    \item \textbf{Cechy dodatkowe:} Znaczny odsetek braków w polach takich jak powierzchnia pomieszczeń przynależnych (\textbf{76,9\%}) zinterpretowano deterministycznie --- brak wpisu notarialnego oznaczał fizyczny brak piwnicy czy komórki, dlatego wartości te wypełniono zerami.
+\end{itemize}
+
+Z uwagi na wymogi modeli matematycznych (takich jak regresja czy MLP), niezbędne było także przekształcenie atrybutów jakościowych w wektory liczbowe:
+\begin{itemize}
+    \item \textbf{Zmienne binarne:} Flagi strukturalne i rynkowe zmapowano bezpośrednio na wartości logiczne $0/1$.
+    \item \textbf{Zmienne kategoryczne (osiedla):} Kluczowa zmienna przestrzenna określająca lokalizację (\texttt{osiedle}) przyjmowała \textbf{41 unikalnych wartości} dla całego miasta.
+    Zamiast techniki \textit{One-Hot Encoding}, która przy tej kardynalności wygenerowałaby 41~rzadkich atrybutów binarnych i~fragmentowałaby ważność cechy w~analizie SHAP, zastosowano \textbf{Target Encoding} (enkodowanie wartością docelową). Technika ta zastępuje każdą kategorię osiedla wygładzoną średnią zmiennej celu w~danej grupie, tworząc pojedynczą ciągłą zmienną numeryczną bezpośrednio skorelowaną z~ceną. W~odróżnieniu od \textit{Label Encoding} (który przypisuje arbitralne numery porządkowe niemające sensu metrycznego), \textit{Target Encoding} generuje sygnał użyteczny zarówno dla modeli drzewiastych (XGBoost), jak i~sieci neuronowych (MLP). Aby uniknąć wycieku informacji, kodowanie jest wykonywane wewnątrz każdego foldu walidacji krzyżowej --- enkoder fitowany jest wyłącznie na zbiorze treningowym.
+\end{itemize}
+
+\subsubsection*{Statystyki opisowe finalnej próby}
+
+\begin{table}[H]
+  \centering
+  \caption{Percentyle zmiennych w~finalnej próbie.}
+  \label{tab:percentiles}
+  \begin{tabularx}{\textwidth}{l *{7}{>{\centering\arraybackslash}X}}
+    \toprule
+    \textbf{Zmienna}
+      & \textbf{p1} & \textbf{p5} & \textbf{p25}
+      & \textbf{p50} & \textbf{p75} & \textbf{p95} & \textbf{p99} \\
+    \midrule
+    \texttt{cena\_za\_m2} [PLN/m²]
+      & 4~654 & 5~958 & 7~921 & 9~509 & 11~325 & 14~006 & 15~945 \\
+    \texttt{powierzchnia\_final} [m²]
+      & 23,4 & 28,3 & 38,3 & 48,7 & 61,9 & 91,6 & 125,8 \\
+    \texttt{metry\_na\_izbe} [m²]
+      & 11,0 & 12,1 & 15,2 & 17,2 & 21,5 & 31,1 & 39,0 \\
+    \texttt{liczba\_izb}
+      & 1 & 1 & 2 & 3 & 4 & 5 & 5 \\
+    \texttt{nr\_kondygnacji}
+      & 0 & 0 & 1 & 3 & 4 & 8 & 13 \\
+    \texttt{odl\_do\_centrum} [km]
+      & 0,33 & 0,83 & 2,34 & 3,39 & 4,77 & 6,54 & 8,77 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+W~przypadku zmiennych binarnych i~kategorycznych niewidocznych w~Tabeli~\ref{tab:statystyki_opisowe}, zbiór zdominowany jest przez transakcje na rynku wtórnym (\texttt{is\_pierwotny}). Filtrowanie (wymóg minimalnie 15~m² i~typowej kondygnacji) sprawiło, że 100\% ostatecznej próby to zabudowa wielorodzinna (\texttt{is\_wielorodzinny} = 1). Pomieszczenie przynależne (piwnica, komórka lokatorska) zostało zadeklarowane w~aktach notarialnych dla około 33\% wszystkich lokali.
+
+\subsection{Urealnienie cen i zmienne makroekonomiczne}
+
+Ceny z różnych lat zostały urealniowane o inflację z przyjęciem \textbf{roku 2025 jako roku bazowego}. Do zbioru dodano zmienne \texttt{wibor\_3m} i \texttt{srednie\_wynagrodzenie}. Okazały się one jednymi z najsilniejszych predyktorów, wpływając zarówno na zdolność kredytową, jak i siłę nabywczą. Ich wpływ na ceny nie jest jednak natychmiastowy --- rynek reaguje na bodźce makroekonomiczne ze znacznym opóźnieniem.
+
+\subsection{Ostateczna struktura zbioru danych}
+
+Po procesie czyszczenia, odfiltrowania oraz urealnienia, ostateczny zbiór składa się z \textbf{32 wyselekcjonowanych cech}. Zmienne pogrupowano w logiczne kategorie (Tabela~\ref{tab:features}).
+
+\begin{longtable}{>{\bfseries}p{3.0cm} >{\raggedright\arraybackslash}p{5.8cm} >{\raggedright\arraybackslash}p{5.4cm}}
+  \caption{Ostateczna struktura zbioru danych po procesie czyszczenia.}
+  \label{tab:features} \\
+  \toprule
+  Kategoria & Nazwy zmiennych & Opis \\
+  \midrule
+  \endfirsthead
+  \multicolumn{3}{l}{\footnotesize\itshape (kontynuacja Tabeli~\ref{tab:features})} \\
+  \toprule
+  Kategoria & Nazwy zmiennych & Opis \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endfoot
+
+  Zmienna celu
+    & \texttt{cena\_za\_m2} (\texttt{float64})
+    & Zwaloryzowana cena transakcyjna za 1~m² (zmienna decyzyjna). Zakres po filtrach: 3~972--17~311~PLN/m². \\
+  \addlinespace
+
+  Cechy przestrzenne
+    & \texttt{wsp\_x}, \texttt{wsp\_y}, \texttt{odl\_do\_centrum}, \texttt{osiedle}, \texttt{osiedle\_cat}, \texttt{adres\_miejscowosc}, \texttt{adres\_ulica}, \texttt{adres\_numer}
+    & Koordynaty EPSG:2180, wyliczony dystans euklidesowy do centrum oraz kategoryzacja osiedla (kluczowa dla premii za lokalizację). \\
+  \addlinespace
+
+  Cechy fizyczne lokalu
+    & \texttt{liczba\_izb}, \texttt{nr\_kondygnacji}, \texttt{powierzchnia\_final}, \texttt{calkowita\_powierzchnia}, \texttt{metry\_na\_izbe}, \texttt{ma\_pomieszczenia\_przynalezne}, \texttt{is\_wielorodzinny}
+    & Struktura mieszkania (metraż, piętro, układ izb) i atrybuty wartości dodanej. Mediana metrażu: 48,7~m², mediana izb: 3. \\
+  \addlinespace
+
+  Zmienne czasowe i makro
+    & \texttt{rok}, \texttt{rok\_miesiac\_float}, \texttt{wibor\_3m}, \texttt{srednie\_wynagrodzenie}
+    & Osadzenie transakcji w reżimie rynkowym i cyklu kredytowym. \texttt{rok\_miesiac\_float} to ciągła reprezentacja daty (np.\ 2022,5 = czerwiec 2022). \\
+  \addlinespace
+
+  Zmienne prawne i rynkowe
+    & \texttt{is\_market\_transaction}, \texttt{is\_pierwotny}, \texttt{is\_uzytkowanie\_wieczyste}, \texttt{sprzedajacy\_firma}, \texttt{sprzedajacy\_jst}, \texttt{sprzedajacy\_osoba}, \texttt{n\_udzial\_str}
+    & Flagi binarne określające strukturę własnościową i~pochodzenie mieszkania (rynek pierwotny/wtórny/komunalny). \\
+  \addlinespace
+
+  Dane ewidencyjne
+    & \texttt{bud\_id}, \texttt{dzialka\_id}, \texttt{dzialka\_mpzp}, \texttt{dzialka\_sposob\_uzytkowania}
+    & Zredukowane parametry geodezyjne identyfikujące rodzaj zabudowy i przeznaczenie terenu (MPZP). \\
+
+\end{longtable}
+
+Zmienną decyzyjną \texttt{cena\_za\_m2} na etapie modelowania poddano transformacji \texttt{log1p}. Choć wcześniejsze obcięcie skrajnych \textbf{2,0\%} obserwacji (maska na poziomie 3~972--17~311~PLN/m²) usunęło już ekstremalnie długi prawy ogon rozkładu i~uczyniło go znacznie bardziej symetrycznym, transformacja logarytmiczna pozostaje kluczowa z~innego powodu --- odzwierciedla \textbf{multiplikatywną strukturę błędu} na rynku nieruchomości. W~wycenie lokali błąd rzędu 10\% waży psychologicznie i~ekonomicznie tyle samo niezależnie od segmentu cenowego (np. przy kawalerce za 5~000~PLN/m² i~przy apartamencie za 15~000~PLN/m²). Minimalizacja MSE na zmiennej logarytmicznej jest matematyczną aproksymacją minimalizacji procentowego błędu predykcji (MAPE).
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Eksploracyjna Analiza Danych (EDA)}
+
+Zbiór liczący ponad 38~tysięcy wyczyszczonych obserwacji wolnorynkowych został poddany dogłębnej eksploracji, obejmującej analizę rozkładów, sprzężeń wielowymiarowych (KDE), sezonowości oraz siły predykcyjnej zmiennych (korelacja Pearsona vs.\ Mutual Information).
+
+\subsection{Rozkłady zmiennych i sezonowość}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{violin_raw.png}
+  \caption{Rozkład wybranych atrybutów w surowym zbiorze danych (wszystkie typy nieruchomości przed czyszczeniem).}
+  \label{fig:violin_raw}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{violin_residential.png}
+  \caption{Rozkład wybranych atrybutów po zastosowaniu filtrów transakcji oraz maski lokali mieszkalnych (próba finalna).}
+  \label{fig:violin_residential}
+\end{figure}
+
+Ceny transakcyjne w wyselekcjonowanej próbie charakteryzują się typową dla rynku nieruchomości \textbf{prawostronną asymetrią} (dodatnia skośność).
+Mediana na całym badanym oknie czasowym wynosi \textbf{9~530~PLN/m²}, przy czym większość wartości koncentruje się w~przedziale od 8~000 do 11~000~PLN/m².
+Chociaż ogony rozkładu zostały już obcięte na poziomie percentyli 1.\ i~99.\ (odpowiednio 3~972 i~17~311~PLN/m²) w~celu wyeliminowania skrajnych anomalii i~ultra-luksusowych apartamentów, rozkład wciąż wykazuje naturalne, strukturalne odchylenie w~stronę droższych lokali.
+To właśnie ta właściwość uzasadnia późniejsze zastosowanie transformacji logarytmicznej przed treningiem modeli predykcyjnych.
+
+\subsection{Zależności dwuwymiarowe i wykresy gęstości (KDE)}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{corr_heatmap.png}
+  \caption{Mapa korelacji Pearsona dla wszystkich zmiennych w zbiorze.}
+  \label{fig:corr_heatmap}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{corr_heatmap_top12.png}
+  \caption{Mapa korelacji dla 12 najsilniej skorelowanych zmiennych ze zmienną celu \texttt{cena\_za\_m2}.}
+  \label{fig:corr_top12}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{kde_bivariate.png}
+  \caption{Wykresy gęstości (KDE) dla wybranych par zmiennych.}
+  \label{fig:kde_bi}
+\end{figure}
+
+Analiza wizualna (KDE) okazała się najciekawsza ze wszystkich, ponieważ pozwoliła zajrzeć bardzo dogłębnie w dane i pokazać zależności, które intuicyjnie mają sens, ale zawsze dobrze jest gdy zamiast nas, dane mówią same:
+
+\begin{enumerate}
+  \item \textbf{Przetarg powierzchni i odległości:} Występuje ewidentna ujemna korelacja między \texttt{cena\_za\_m2} a całkowitą powierzchnią lokalu (premia za mały metraż).
+  \item \textbf{Kształt ,,stożka'' (cena vs.\ odległość):} Relacja ceny do odległości od centrum nie jest idealnie liniowa. W promieniu 0--3~km od Starego Rynku rozstrzał cen jest bardzo szeroki (od tanich ruder po luksusowe apartamenty). Im dalej od centrum (powyżej 4--5~km), tym wariancja wyraźnie maleje --- rynek peryferyjny staje się homogeniczny i przewidywalny.
+  \item \textbf{Powierzchnia vs.\ kondygnacja:} Widać kompromis pomiędzy metrażem a wysokością budynku. Lokale o największych powierzchniach kumulują się na niższych kondygnacjach (kamienice, wille miejskie), podczas gdy w budownictwie wysokim dominują mniejsze metraże.
+  \item \textbf{Realne drożenie mieszkań ponad inflację (\texttt{rok} vs.\ \texttt{cena\_za\_m2}):} Korelacja czasu z ceną za~m² --- już po urealnieniu inflacją --- wskazuje, że mieszkania w Poznaniu obiektywnie drożeją w tempie przekraczającym ogólny poziom cen w gospodarce. Mechanizm ten ma związek z postępującą komasacją ludności w dużych ośrodkach miejskich i wyludnianiem obszarów wiejskich, co strukturalnie zwiększa popyt przy ograniczonej podaży gruntów w mieście.
+  \item \textbf{Skok metrażu izby na 5.\ piętrze (\texttt{nr\_kondygnacji} vs.\ \texttt{metry\_na\_izbe}):} Wyraźnie widoczny jest przeskok wartości \texttt{metry\_na\_izbe} w okolicach 5.\ kondygnacji. Interpretacja jest architektoniczno-historyczna: niższe budynki, wznoszone w starszych stylach budownictwa (kamienice, bloki z~wielkiej płyty), charakteryzowały się większymi izbami i wyższymi sufitami. Współczesne budownictwo wysokie optymalizuje natomiast układ pod kątem liczby lokali, redukując powierzchnię przypadającą na izbę.
+  \item \textbf{Wysokie kondygnacje wyłącznie blisko centrum (\texttt{nr\_kondygnacji} vs.\ \texttt{odl\_do\_centrum}):} Wysoka zabudowa koncentruje się niemal wyłącznie w strefie do~5~km od centrum. Powyżej tej granicy obserwowany jest drastyczny spadek maksymalnej kondygnacji --- co jest oczywistą konsekwencją lokalizacji wieżowców i~biurowców z~częścią mieszkalną w ścisłym centrum, przy braku ekonomicznego uzasadnienia dla takiej zabudowy na peryferiach.
+  \item \textbf{Ujemna korelacja ceny i liczby izb jako efekt lokalizacji (\texttt{liczba\_izb} vs.\ \texttt{cena\_za\_m2} i \texttt{odl\_do\_centrum}):} Ujemna korelacja ceny za~m² z~liczbą izb wynika nie tylko z~prostego efektu metrażowego (większe mieszkanie = niższa cena jednostkowa), ale też pośrednio z~lokalizacji. W centrum buduje się niemal wyłącznie mieszkania 1--3-pokojowe --- inwestorzy i~deweloperzy optymalizują wartość działki przez maksymalizację liczby małych, drogich jednostek. Większe lokale rodzinne (4+ izby) z definicji wypychane są dalej od centrum, gdzie ceny za~m² są niższe. Liczba izb staje się więc pośrednim proxy odległości od centrum.
+\end{enumerate}
+
+\subsection{Siła predykcyjna: korelacja Pearsona vs.\ Mutual Information}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{mutual_info.png}
+  \caption{Porównanie siły predykcyjnej cech: korelacja Pearsona vs.\ Mutual Information (MI).}
+  \label{fig:mutual_inf}
+\end{figure}
+
+Aby zrozumieć, co faktycznie steruje rynkiem, zestawiono klasyczną korelację liniową (Pearson) z miarą informacji wzajemnej (Mutual Information --- MI), która potrafi wyłapać nieliniowe zależności.
+
+\medskip
+\noindent\textbf{Top~5 cech --- korelacja Pearsona (zależności liniowe z \texttt{log1p(cena\_za\_m2)}):}
+\begin{enumerate}
+  \item \texttt{rok\_miesiac\_float}: $\mathbf{0{,}441}$
+  \item \texttt{rok}: $\mathbf{0{,}438}$
+  \item \texttt{srednie\_wynagrodzenie}: $\mathbf{0{,}409}$
+  \item \texttt{liczba\_izb}: $\mathbf{-0{,}384}$ (korelacja ujemna)
+  \item \texttt{powierzchnia\_final}: $\mathbf{-0{,}265}$ (korelacja ujemna)
+\end{enumerate}
+\noindent\textit{Wniosek:} Korelacja liniowa faworyzuje czysty, rosnący trend czasu i wskaźników makro (wynagrodzenia), a~także liniową utratę wartości jednostkowej wraz ze wzrostem metrażu.
+
+\medskip
+\noindent\textbf{Top cechy --- Mutual Information (wyłapywanie relacji nieliniowych):}
+\begin{enumerate}
+  \item \texttt{rok\_miesiac\_float} / \texttt{rok} (czas): $\mathbf{0{,}133}$
+  \item \texttt{srednie\_wynagrodzenie} (makro): $\mathbf{0{,}123}$
+  \item \texttt{powierzchnia\_final} (fizyczne): $\mathbf{0{,}109}$
+  \item \texttt{odl\_do\_centrum} (lokalizacja): $\mathbf{0{,}106}$
+  \item \texttt{wibor\_3m} (makro): $\mathbf{0{,}104}$
+  \item \texttt{wsp\_x} (geografia N-S): $\mathbf{0{,}103}$
+\end{enumerate}
+
+\noindent\textit{Wniosek:} MI radzi sobie znacznie lepiej z nieliniowością wyceny. Choć najważniejszym wektorem pozostaje czas i wskaźniki makro (\texttt{srednie\_wynagrodzenie}, \texttt{wibor\_3m}), to metryki lokalizacyjne i geograficzne (\texttt{odl\_do\_centrum}, \texttt{wsp\_x}, \texttt{osiedle\_cat}) zyskują kluczowe znaczenie w porównaniu do zwykłej korelacji liniowej. Wpływ lokalizacji na cenę ma charakter silnie nieliniowy (wartość rośnie w centrum, spada na peryferiach, ale ponownie rośnie w prestiżowych strefach podmiejskich). Uzasadnia to również, dlaczego w dalszej części pracy flagowym modelem predykcyjnym stał się XGBoost --- algorytm drzewiasty przystosowany do modelowania przestrzeni nieliniowych.
+
+\subsection{Klastrowanie przestrzenne i segmentacja budynków}
+
+Zbiór danych poddano dwóm niezależnym analizom nienadzorowanym, operującym na różnych przestrzeniach cech --- geograficznej i~fizyczno-typologicznej.
+
+\subsubsection{Klastrowanie przestrzenne (HDBSCAN)}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{spatial_clusters.png}
+  \caption{Przestrzenne klastrowanie transakcji na mapie Poznania (HDBSCAN, \texttt{min\_cluster\_size}=500, \texttt{min\_samples}=250).}
+  \label{fig:spatial_clusters}
+\end{figure}
+
+Na podstawie współrzędnych geograficznych (\texttt{wsp\_x}, \texttt{wsp\_y} w~układzie EPSG:2180) przeprowadzono przestrzenne klastrowanie algorytmem \textbf{HDBSCAN} (\textit{Hierarchical Density-Based Spatial Clustering of Applications with Noise}). Wybór algorytmu gęstościowego był podyktowany nieregularnym kształtem granic poznańskich dzielnic i~nierównomiernym rozkładem transakcji na mapie --- metody oparte na odległości euklidesowej (K-Means) nie byłyby w~stanie prawidłowo odwzorować takich konturów. Parametry: \texttt{min\_cluster\_size}$=500$, \texttt{min\_samples}$=250$. Wyodrębnione klastry z~grubsza pokrywają się z~granicami głównych poznańskich osiedli i~dzielnic. Potwierdza to fakt, że na rynku nieruchomości w~Poznaniu występuje naturalna aglomeracja transakcji --- gęsta zabudowa mieszkalna skupia się w~wyraźnych enklawach, które są rozdzielone naturalnymi lub urbanistycznymi barierami (np. doliną Warty, parkami, torami kolejowymi czy strefami przemysłowymi).
+
+\subsubsection{Segmentacja typologiczna budynków (K-Means)}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{siluette_property_segments.png}
+  \caption{Analiza sylwetkowa i~metoda łokciowa. Wybrano $k=3$ na podstawie absolutnego maksimum miary \textit{Silhouette Score}, co gwarantuje najwyższą spójność klastrów.}
+  \label{fig:silhouette_property}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{cluster_property_segments.png}
+  \caption{Segmentacja rynku na podstawie cech fizycznych lokalu (K-Means, $k=3$, wyznaczone metodą sylwetkową).}
+  \label{fig:property_clusters}
+\end{figure}
+
+Niezależnie od podziału geograficznego przeprowadzono segmentację na podstawie cech fizycznych lokalu i~budynku: \texttt{powierzchnia\_final}, \texttt{metry\_na\_izbe}, \texttt{odl\_do\_centrum} oraz \texttt{nr\_kondygnacji}. Optymalną liczbę klastrów wyznaczono analizując współczynnik sylwetkowy (\textit{Silhouette Score}) w~zakresie $k \in \{2, \ldots, 9\}$. Chociaż subiektywna metoda łokciowa (Inertia) mogłaby sugerować zgięcie w~okolicach $k=5$, to właśnie dla \textbf{$k=3$} współczynnik sylwetkowy osiągnął globalne maksimum. \textit{Silhouette Score} jest miarą matematyczną określającą zwartość klastra oraz jego odseparowanie od innych grup. Maksimum dla $k=3$ dowodzi, że to właśnie podział na trzy grupy daje najbardziej jednoznaczne i~niezachodzące na siebie profile budownictwa. Klastrowanie wykonano algorytmem \textbf{K-Means} ($n\_init=10$, standaryzacja cech \texttt{StandardScaler}).
+
+\begin{table}[H]
+  \centering
+  \caption{Profile trzech segmentów typologicznych (K-Means, $k=3$).}
+  \label{tab:property_segments}
+  \begin{tabularx}{\textwidth}{l >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+    \toprule
+    \textbf{Segment} & \textbf{\textit{n}} & \textbf{Med. cena} [PLN/m²] & \textbf{Śr. pow.} [m²] & \textbf{m²/izbę} & \textbf{Śr. piętro} & \textbf{Śr. odl.} [km] \\
+    \midrule
+    1 --- niska zabudowa przestronna & 9~642  & 9~753 & 68,1 & 26,4 & 2,4 & 3,3 \\
+    0 --- typowy blok & 24~478 & 9~496 & 47,1 & 16,4 & 2,4 & 3,7 \\
+    2 --- wieżowce i bloki wysokie & 4~034  & 9~152 & 48,3 & 16,5 & 8,8 & 3,8 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Wyodrębnione segmenty odzwierciedlają trzy dominujące typy zabudowy mieszkalnej Poznania:
+\begin{itemize}
+  \item \textbf{Segment~1 --- niska zabudowa, lokale przestronne}: kamienice i~wille miejskie z~dużymi mieszkaniami (śr.~68~m², 26~m²/izbę), usytuowane na niskich kondygnacjach (śr.~2,4).
+  \item \textbf{Segment~0 --- typowy blok wielorodzinny}: dominujący segment rynku ($n=24~478$), odpowiadający zarówno budownictwu z~wielkiej płyty, jak i~standardowym inwestycjom deweloperskim. Kompaktowy układ (47~m², 16~m²/izbę), niskie piętra.
+  \item \textbf{Segment~2 --- wieżowce i~bloki wysokie}: metraż zbliżony do Segmentu~0, lecz kondygnacja znacząco wyższa (śr.~8,8 piętra). Nieznacznie niższa mediana ceny (9~152~PLN/m²) może odzwierciedlać koncentrację starszych wieżowców wielkopłytowych z~lat 70.--80.
+\end{itemize}
+
+Kluczowy wniosek: różnica mediany cen między segmentami wynosi zaledwie \textbf{601~PLN/m²} (6,5\%), a~wszystkie trzy segmenty cechują się niemal identyczną średnią odległością od centrum (3,3--3,8~km). Oznacza to, że \textbf{typ fizyczny zabudowy sam w~sobie nie determinuje ceny} --- algorytm podzielił próbę wzdłuż osi typologicznej (\texttt{nr\_kondygnacji} $\times$ \texttt{powierzchnia\_final}), a~nie przestrzennej ani cenowej. Zróżnicowanie cenowe w~Poznaniu jest pierwotnie efektem lokalizacji i~czasu transakcji, a~dopiero wtórnie --- charakteru samego budynku.
+
+\subsection{Autokorelacja, opóźnienie makro i ,,złota era'' wzrostów}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{acf.png}
+  \caption{Autokorelacja dynamiki zmian cen i jej relacja z WIBOR~3M (analiza szeregów czasowych).}
+  \label{fig:acf}
+\end{figure}
+
+Wpływ otoczenia makroekonomicznego nie jest natychmiastowy. Z analizy szeregów czasowych wynika, że zmiana stóp procentowych (WIBOR) przebija barierę istotności w korelacji z dynamiką zmian cen nieruchomości dopiero z opóźnieniem wynoszącym \textbf{15--16 miesięcy}. Gdy krzywa WIBOR rośnie, ceny przez ponad rok wykazują silną inercję, zanim ich dynamika wzrostowa ostatecznie wyhamuje.
+
+Na ten obraz nakłada się okres dynamicznych wzrostów w latach 2017--2024. Największe zyski odnotowano na rubieżach i osiedlach modernizowanych:
+\begin{enumerate}
+  \item \textbf{Starołęka-Minikowo-Marlewo:} +53,8\%
+  \item \textbf{Umultowo:} +41,5\%
+  \item \textbf{Ostrów Tumski-Śródka-Zawady:} +41,0\%
+  \item \textbf{Łazarz:} +39,5\%
+  \item \textbf{Żegrze:} +37,7\%
+\end{enumerate}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Modelowanie predykcyjne}
+
+\subsection{Stos technologiczny i wykorzystane narzędzia}
+
+Całość prac analitycznych, począwszy od etapu integracji i czyszczenia danych, poprzez inżynierię cech, aż po budowę i ewaluację modeli uczenia maszynowego, została zrealizowana w środowisku języka \textbf{Python}. W celu zapewnienia optymalnej wydajności oraz powtarzalności obliczeń, wykorzystano następujący zestaw pakietów i bibliotek:
+
+\begin{itemize}
+    \item \textbf{Przetwarzanie i inżynieria danych:} \texttt{pandas} oraz \texttt{numpy} do manipulacji danymi tabelarycznymi, obsługi braków danych oraz transformacji zmiennych wejściowych i zmiennej celu.
+    \item \textbf{Uczenie maszynowe i modelowanie:}
+    \begin{itemize}
+        \item \texttt{scikit-learn} --- do budowy zintegrowanych potoków przetwarzania (\textit{pipelines}), walidacji krzyżowej specyficznej dla szeregów czasowych (\texttt{TimeSeriesSplit}), strojenia hiperparametrów (\texttt{RandomizedSearchCV}), algorytmów klastrowania (\texttt{KMeans}, \texttt{HDBSCAN}) oraz stworzenia interpretowalnego modelu odniesienia (drzewo decyzyjne).
+        \item \texttt{xgboost} --- posłużył do wytrenowania głównego, najbardziej skutecznego modelu predykcyjnego opartego na algorytmie Extreme Gradient Boosting (\texttt{XGBRegressor}).
+        \item \texttt{PyTorch} --- wykorzystany do implementacji oraz ewaluacji modelu porównawczego, opartego na sztucznych sieciach neuronowych (Multilayer Perceptron --- MLP).
+    \end{itemize}
+    \item \textbf{Wyjaśnialność sztucznej inteligencji (XAI):} \texttt{shap} (SHapley Additive exPlanations) do dogłębnej interpretacji modelu, pozwalający na ewaluację globalnego i lokalnego wpływu poszczególnych cech na ostateczną predykcję cen.
+    \item \textbf{Analiza geoprzestrzenna (GIS):} \texttt{geopandas}, \texttt{contextily} oraz \texttt{pyproj} do operacji na współrzędnych geograficznych, transformacji układów odniesienia (np. przejście na \texttt{EPSG:3857}) oraz precyzyjnego rzutowania klastrów i transakcji na podkłady mapowe pochodzące z OpenStreetMap.
+    \item \textbf{Wizualizacja danych i statystyka:} \texttt{matplotlib} oraz \texttt{seaborn} do generowania profesjonalnych wykresów analitycznych (m.in. \textit{violin plots}, \textit{boxplots}, wykresy rozrzutu i korelacji). Dodatkowo użyto biblioteki \texttt{scipy} (konkretnie modułu \texttt{stats.gaussian\_kde}) do estymacji jądrowej gęstości (KDE) i wykreślania map ciepła obrazujących bilans finansowy JST.
+\end{itemize}
+
+\subsection{Dobór cech i uzasadnienie}
+
+Do modelu włączono \textbf{15 cech} wybranych na podstawie dwóch kryteriów: siły sygnału nieparametrycznego (Mutual Information, MI) oraz uzasadnienia domenowego. Cechy pogrupowano w cztery kategorie (Tabela~\ref{tab:features_mi}).
+
+\begin{table}[H]
+  \centering
+  \caption{Cechy wejściowe modelu --- wartość MI i uzasadnienie doboru.}
+  \label{tab:features_mi}
+  \begin{tabularx}{\textwidth}{>{\ttfamily}l >{\centering\arraybackslash}p{1.4cm} X}
+    \toprule
+    \normalfont\textbf{Cecha} & \textbf{MI} & \textbf{Uzasadnienie} \\
+    \midrule
+    \multicolumn{3}{l}{\textit{Lokalizacja}} \\
+    wsp\_x                        & 0,103 & Gradient N--S (premia Jeżyce/Wilda) \\
+    wsp\_y                        & 0,086 & Gradient E--W \\
+    odl\_do\_centrum               & 0,106 & Pierścieniowy rozkład cen od Starego Rynku \\
+    osiedle\_cat                   & 0,096 & Efekty lokalne niewidoczne w~ciągłym gradiencie X/Y \\
+    \addlinespace
+    \multicolumn{3}{l}{\textit{Makro i czas}} \\
+    rok\_miesiac\_float             & 0,132 & Ciągły indeks czasu (unika dyskretyzacji roku) \\
+    srednie\_wynagrodzenie          & 0,123 & Siła nabywcza; najsilniejsza cecha makro \\
+    wibor\_3m                      & 0,104 & Reżim kredytowy; przełomy 2022--2023 \\
+    \addlinespace
+    \multicolumn{3}{l}{\textit{Cechy fizyczne lokalu}} \\
+    powierzchnia\_final             & 0,109 & Premia za małe metraże w centrum \\
+    liczba\_izb                    & 0,091 & Efekt nieliniowy (kawalerki = premia) \\
+    metry\_na\_izbe                 & 0,060 & Proxy gęstości układu mieszkania \\
+    nr\_kondygnacji                & 0,028 & Premia za ostatnie/pierwsze piętro \\
+    ma\_pomieszczenia\_przynalezne  & 0,012 & Flaga binarna: piwnica/komórka \\
+    \addlinespace
+    \multicolumn{3}{l}{\textit{Cechy prawne i rynkowe}} \\
+    is\_pierwotny                  & ---   & Rynek pierwotny vs.\ wtórny \\
+    sprzedajacy\_firma             & ---   & Deweloper jako sprzedający \\
+    property\_segment              & ---   & Typ zabudowy (K-Means, $k=3$) \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+Cechy z~MI poniżej progu 0,04 włączono wyłącznie na podstawie uzasadnienia domenowego (\texttt{nr\_kondygnacji}, \texttt{ma\_pomieszczenia\_przynalezne}). Cechy bez wartości MI (\texttt{is\_pierwotny}, \texttt{sprzedajacy\_firma}, \texttt{property\_segment}) nie były dostępne na etapie selekcji nieparametrycznej z~uwagi na charakter kategoryczny lub fakt wyliczenia ich w późniejszym etapie (klastrowanie).
+
+Zgodnie z~uzasadnieniem z~sekcji EDA (minimalizacja błędu względnego MAPE), model trenowano na zmiennej po transformacji \texttt{log1p} (zakres: $\mu=9{,}146$, $\sigma=0{,}262$). Dane walidowano metodą \textbf{TimeSeriesSplit} ($n\_splits=5$), trenując wyłącznie na przeszłości i~testując w~oknach przesuwnych w~przód --- eliminuje to ryzyko wycieku danych z~przyszłości (\textit{look-ahead bias}).
+
+\subsection{Porównanie modeli}
+
+Przetestowano cztery konfiguracje modeli: interpretowalną (drzewo decyzyjne), gradientową (XGBoost) oraz dwie implementacje sieci neuronowej (MLP PyTorch i~MLP scikit-learn). Wyniki na TimeSeriesSplit zestawiono w~Tabeli~\ref{tab:model_comparison}.
+
+\begin{table}[H]
+  \centering
+  \caption{Porównanie modeli --- metryki na walidacji krzyżowej (TimeSeriesSplit, rozszerzające się okno treningowe).}
+  \label{tab:model_comparison}
+  \begin{tabularx}{\textwidth}{l >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+    \toprule
+    \textbf{Model} & \textbf{Mean $R^2$} & \textbf{Std $R^2$} & \textbf{MAE [PLN/m²]} & \textbf{MAPE [\%]} \\
+    \midrule
+    XGBoost (tuned) & \textbf{0,332} & \textbf{0,037} & \textbf{1~474} & \textbf{14,45} \\
+    MLP (PyTorch) & 0,206 & 0,080 & 1~462 & 16,53\textsuperscript{†} \\
+    Drzewo decyzyjne (\texttt{max\_depth}=3) & 0,090 & 0,075 & 1~809 & 17,35 \\
+    MLP (scikit-learn) & $-2{,}074$ & 2,265 & 3~134 & 33,93 \\
+    \bottomrule
+    \multicolumn{5}{l}{\footnotesize \textsuperscript{†}~Średnia MAPE z 12~okien rocznych (2014--2025).} \\
+  \end{tabularx}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{XGBoost (tuned):} Najlepsza jakość predykcji. Po 30~iteracjach strojenia (RandomizedSearchCV) optymalne parametry: \texttt{max\_depth}=8, \texttt{n\_estimators}=700, \texttt{subsample}=0,85, \texttt{learning\_rate}=0,03, \texttt{colsample\_bytree}=0,7. Średnie CV $R^2 = 0{,}332$, MAE 1~474~PLN/m², MAPE~14,45\%.
+  \item \textbf{MLP (PyTorch):} Implementacja w~PyTorch ustabilizowała wyniki względem wersji scikit-learn (Mean $R^2 = 0{,}206$, MAE 1~462~PLN/m²), jednak sieć nie dorównała gradientowym drzewom decyzyjnym. Wysoka wariancja ($\sigma_{R^2}=0{,}080$) wskazuje na wrażliwość sieci na zmiany reżimu rynkowego w~kolejnych oknach czasowych.
+  \item \textbf{Drzewo decyzyjne (\texttt{max\_depth}=3):} Model interpretowalny --- parametr \texttt{max\_depth}=3 to świadomy kompromis między czytelnością a~jakością ($R^2=0{,}090$, MAE 1~809~PLN/m²). Różnica względem XGBoost (+335~PLN/m² MAE, +2,9~pp.\ MAPE) stanowi mierzalny koszt interpretowalności. Model służy wyłącznie ilustracji logiki wyceny (Rysunek~\ref{fig:tree}), nie porównaniu z bardziej skomplikowanymi algorytmami.
+  \item \textbf{MLP (scikit-learn):} $R^2=-2{,}07$ na TimeSeriesSplit --- ekstremalne przeuczenie wynikające z~braku regularyzacji i~domyślnych hiperparametrów. Wynik dyskwalifikuje tę konfigurację jako kandydata predykcyjnego.
+\end{itemize}
+
+\subsection{Model interpretowalny: drzewo decyzyjne}
+\label{sec:tree}
+
+Drzewo decyzyjne z~\texttt{max\_depth}=3 pozwala zadać dokładnie 3~pytania o~dane, co przy złożoności rynku poznańskiego jest świadomym uproszczeniem na rzecz czytelności. Dla celów wizualizacji drzewo na Rysunku~\ref{fig:tree} zostało wytrenowane bezpośrednio na surowej zmiennej celu (PLN/m²), aby wartości w~liściach były natychmiast interpretowalne. Metryki porównawcze w~Tabeli~\ref{tab:model_comparison} pochodzą natomiast z~wersji trenowanej na \texttt{log1p(cena\_za\_m2)}, zgodnie z~metodologią przyjętą dla pozostałych algorytmów.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{decision_tree.png}
+  \caption{Reguły wyceny 1~m² w~Poznaniu (drzewo decyzyjne, \texttt{max\_depth}=3, fit na całym zbiorze treningowym).}
+  \label{fig:tree}
+\end{figure}
+
+Odczyt drzewa ujawnia dominującą rolę \texttt{rok\_miesiac\_float} jako korzenia --- cecha czasowa (z wyraźnym punktem podziału na 2018 rok) w pierwszej kolejności rozdziela zbiór na dwa główne reżimy cenowe. W kolejnym kroku ten interpretowalny model dzieli rynek według cech fizycznych lokalu, wykorzystując do tego zmienną \texttt{liczba\_izb} (konsekwentnie wyodrębniając małe mieszkania do 2 pokoi od tych większych). Dopiero na trzecim poziomie głębokości pojawia się podział przestrzenny bazujący na zakodowanej zmiennej \texttt{osiedle\_cat}. Taka struktura drzewa jasno pokazuje, że na najwyższym poziomie ogólności to czas transakcji i wielkość mieszkania wyznaczają główne osie wyceny, a lokalizacja stanowi dopiero ich dopełnienie.
+
+\subsection{Zmiana reżimu rynkowego (test na czasie)}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{yearly_performance_vs_wibor.png}
+  \caption{Ewaluacja krocząca głównego modelu predykcyjnego (XGBoost) rok po roku vs.\ dynamika WIBOR~3M (rozszerzające się okno treningowe).}
+  \label{fig:yearly_perf}
+\end{figure}
+
+Śledząc ewaluację kroczącą flagowego algorytmu XGBoost (Tabela~\ref{tab:expanding_window}), widoczne jest wyraźne ,,tąpnięcie'' jakości modelu w~latach kryzysowych. Rok \textbf{2022} przyniósł najniższy odczyt $R^2 = 0{,}241$ oraz najwyższy błąd MAPE~16,4\% --- model drzewiasty, nauczony stabilnego rynku z~lat 2013--2021, zderzył się z~gwałtownymi podwyżkami stóp procentowych (WIBOR~3M wzrósł z~0,2\% do ponad 7\%) i~paraliżem akcji kredytowej. Zmiana reżimu rynkowego była tak drastyczna, że wpłynęła na skuteczność predykcji. Do 2025~roku, gdy rynek wchłonął szok, jakość predykcji znów zaczęła się normować, a~MAPE spadło w~okolice~14,4\%. Warto zaznaczyć, że w~tym samym kryzysowym 2022~roku model porównawczy oparty na sieciach neuronowych (MLP) uległ całkowitej dekompozycji ($R^2$ spadło do 0,077, a~MAPE wzrosło do blisko 19,0\%), co dowodzi znacznie większej odporności algorytmów gradientowego wzmacniania na szoki rynkowe.
+
+\begin{table}[H]
+  \centering
+  \caption{Wyniki modelu XGBoost w~rozszerzającym się oknie czasowym.}
+  \label{tab:expanding_window}
+  \small
+  \begin{tabularx}{\textwidth}{>{\centering\arraybackslash}p{1cm} >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X >{\centering\arraybackslash}X}
+    \toprule
+    \textbf{Rok} & \textbf{$n$ train} & \textbf{$n$ val} & \textbf{$R^2$} & \textbf{MAE [PLN]} & \textbf{MAPE [\%]} \\
+    \midrule
+    2013 & 3~163  & 1~682 & 0,440 & 1~025 & 13,8 \\
+    2014 & 4~845  & 1~854 & 0,392 & 1~071 & 13,6 \\
+    2015 & 6~699  & 2~075 & 0,364 & 1~072 & 13,6 \\
+    2016 & 8~774  & 2~259 & 0,423 & 1~058 & 13,0 \\
+    2017 & 11~033 & 2~485 & 0,422 & 1~072 & 13,0 \\
+    2018 & 13~518 & 2~668 & 0,375 & 1~192 & 13,4 \\
+    2019 & 16~186 & 2~967 & 0,365 & 1~286 & 13,8 \\
+    2020 & 19~153 & 2~623 & 0,343 & 1~388 & 13,7 \\
+    2021 & 21~776 & 3~563 & 0,369 & 1~350 & 13,9 \\
+    2022 & 25~339 & 3~076 & 0,241 & 1~484 & 16,4 \\
+    2023 & 28~415 & 3~108 & 0,405 & 1~403 & 14,7 \\
+    2024 & 31~523 & 3~152 & 0,386 & 1~381 & 13,5 \\
+    2025 & 34~675 & 3~479 & 0,340 & 1~384 & 14,4 \\
+    \midrule
+    \multicolumn{3}{l}{\textit{Średnia w całym oknie}} & \textit{0,374} & \textit{1~243} & \textit{13,9} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection{Wyjaśnialność modelu (XAI): SHAP vs.\ Mutual Information}
+\label{sec:shap}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{xgb_shap.png}
+  \caption{Ranking cech według $|$SHAP$|$ --- XGBoost (tuned).}
+  \label{fig:shap_xgb}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\textwidth]{shap_mlp.png}
+  \caption{Ranking cech według $|$SHAP$|$ --- MLP (PyTorch).}
+  \label{fig:shap_mlp}
+\end{figure}
+
+Zestawienie wartości SHAP z~uprzednio wyznaczonymi wartościami MI (Tabela~\ref{tab:features_mi}) ujawnia spójną, lecz nie identyczną hierarchię ważności cech:
+
+\begin{itemize}
+  \item \textbf{Czas dominuje w~obu modelach:} \texttt{rok\_miesiac\_float} zajmuje pierwszą pozycję w~rankingu SHAP zarówno w~XGBoost, jak i~w~MLP PyTorch, choć w~MI plasuje się dopiero za cechami lokalizacyjnymi. Bezpośrednie porównanie wartości bezwzględnych SHAP między modelami nie jest uprawnione (TreeExplainer vs.\ KernelExplainer to różne metody aproksymacji), porównywalne są natomiast \textbf{rankingi cech}. Oba modele aktywnie korzystają z~trendu czasowego jako z~pośredniego medium nieobserwowanych zmian jakościowych rynku.
+  \item \textbf{Rozbieżność lokalizacji między modelami:} W~XGBoost \texttt{osiedle\_cat} (SHAP = 0,029) przewyższa koordynaty \texttt{wsp\_x}/\texttt{wsp\_y} (0,023--0,026) --- model drzewiasty preferuje dyskretny podział na osiedla nad ciągłym gradientem przestrzennym. W~MLP PyTorch relacja jest odwrotna: koordynaty dominują nad \texttt{osiedle\_cat}, co wynika z~naturalnej zdolności sieci do interpolacji w~przestrzeni ciągłej.
+  \item \textbf{Cechy prawne bez wpływu w~obu modelach:} \texttt{is\_pierwotny} i~\texttt{sprzedajacy\_firma} osiągają SHAP $< 0{,}002$ --- po uwzględnieniu lokalizacji i~czasu typ rynku (pierwotny/wtórny) nie wnosi dodatkowego sygnału. Kandydaci do usunięcia w~kolejnej iteracji.
+  \item \textbf{\texttt{property\_segment} minimalny:} SHAP = 0,002 (XGBoost) i~0,001 (MLP) --- spójne z~wnioskiem z~sekcji klastrowania, że typ fizyczny zabudowy sam w~sobie nie różnicuje ceny po uwzględnieniu lokalizacji i~czasu.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Analiza transakcji JST (Aspekt biznesowy)}
+\label{sec:jst}
+
+Najbardziej oryginalnym i istotnym ekonomicznie elementem projektu jest izolacja i analiza operacji, w których sprzedającym była Jednostka Samorządu Terytorialnego (JST). Celem było sprawdzenie, w jaki sposób miasto zarządzało swoim portfelem mieszkaniowym w~latach 2011--2025.
+
+\medskip\noindent
+\textbf{Metodologia:} Dla każdej z \textbf{62~454} rzetelnych transakcji komunalnych wyznaczono historyczny \textit{benchmark rynkowy} --- obliczony jako mediana ceny wolnorynkowej za 1~m² na danym osiedlu w danym roku transakcji.
+
+\subsection{Globalny bilans portfela komunalnego}
+
+Analiza całego wolumenu wskazuje, że polityka mieszkaniowa JST jest niemal grą o sumie zerowej, w której ogromne straty na bonifikatach są rekompensowane przez agresywne licytacje komercyjne:
+\begin{itemize}
+  \item \textbf{Utracona wartość budżetowa} (transakcje JST poniżej rynku): \textbf{2~983,9 mln PLN}.
+  \item \textbf{Nadwyżka budżetowa} (przetargi JST wygrywane powyżej rynku): \textbf{2~858,2 mln PLN}.
+  \item 52,2\% wszystkich transakcji JST odbyło się poniżej mediany rynkowej.
+  \item Mediana różnicy dla całego portfela: \textbf{+105~PLN/m²}.
+\end{itemize}
+
+\subsection{Ekstremalne bonifikaty ($>30\%$ poniżej rynku)}
+
+Pomimo zbilansowanego portfela ogólnego, algorytmy zidentyfikowały istotną grupę \textbf{3~498 wyprzedaży lokali z bonifikatą sięgającą powyżej 30\%} względem wyceny osiedlowej. Całkowita szacunkowa strata miasta na tej wąskiej grupie silnie zniżkowanych lokali wyniosła \textbf{877,2 mln PLN}.
+
+\begin{table}[H]
+  \centering
+  \caption{Zestawienie udzielonych bonifikat (transakcje z bonifikatą $>$30\%) na przestrzeni wybranych lat.}
+  \label{tab:bonifikaty}
+  \begin{tabularx}{\textwidth}{>{\centering\arraybackslash}p{1.2cm} >{\centering\arraybackslash}p{2.4cm} >{\centering\arraybackslash}p{2.8cm} >{\centering\arraybackslash}X >{\centering\arraybackslash}p{2.8cm}}
+    \toprule
+    \textbf{Rok} & \textbf{Liczba transakcji} & \textbf{Mediana bonifikaty [\%]} & \textbf{Mediana bonifikaty [PLN/m²]} & \textbf{Strata [mln PLN]} \\
+    \midrule
+    2011 & 44  & 41,4\% & 3~523 & 11,57  \\
+    2013 & 53  & 43,5\% & 3~348 & 12,85  \\
+    2015 & 58  & 50,5\% & 3~967 & 13,87  \\
+    2018 & 143 & 39,3\% & 4~029 & 37,52  \\
+    2020 & 178 & 34,0\% & 3~741 & 49,09  \\
+    2022 & 458 & 34,3\% & 3~935 & 117,77 \\
+    2024 & 866 & 34,8\% & 4~521 & 218,17 \\
+    2025 & 243 & 45,0\% & 5~444 & 61,01  \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\noindent\textbf{Rozkład właściwości bonifikowanych lokali:}
+Zbywane ze znaczną zniżką (średnio \textbf{40\%}, dochodzącą w ekstremach do 98\%) mieszkania to wcale nie rynkowe ,,mikro-klitki''. Ich średnia powierzchnia wynosiła \textbf{58,24~m²} (mediana 54,35~m²), a typowy układ to blisko 3~izby (2,84). Rozpiętość metrażowa wynosiła od 12,50~m² aż do 149,95~m², a~średnia cena transakcyjna za metr wynosiła zaledwie 6~815~PLN.
+
+\subsection{Paradoks wolumenu a strat (kto i gdzie kupuje?)}
+
+Zaskakującym wnioskiem jest absolutna dominacja podmiotów prawnych w strukturze kupujących. W~przetargach licytowanych ,,powyżej rynku'' niemal \textbf{99,83\%} beneficjentów to \texttt{inny\_podmiot\_prawny}. Podobny odsetek dotyczy transakcji z ekstremalną bonifikatą. Oznacza to, że system sprzedaży komunalnej (zarówno zniżkowej, jak i licytacyjnej) został w znacznym stopniu \textbf{skomercjalizowany}.
+
+Analiza przestrzenna ujawnia wyraźny kontrast między osiedlami, w których miasto udziela bonifikat, a tymi, w których generuje nadwyżki finansowe.
+
+\medskip
+\noindent\textbf{Gdzie miasto udziela najwięcej bonifikat (największy wolumen zniżek)?}\\
+Najwięcej transakcji obciążonych wysoką bonifikatą ($>30\%$) ma miejsce na osiedlach peryferyjnych:
+\begin{enumerate}
+  \item \textbf{Ławica:} 902 transakcje
+  \item \textbf{Podolany:} 483 transakcje
+  \item \textbf{Naramowice:} 363 transakcje
+\end{enumerate}
+To w tych rejonach budżet najmocniej dotuje kupujących (często oddając im udziały za ułamek wartości rynkowej).
+
+\medskip
+\noindent\textbf{Gdzie miasto ZARABIA najwięcej w przetargach (największa nadwyżka budżetowa)?}\\
+Całkowitym przeciwieństwem są historyczne i centralne dzielnice Poznania. Wyprzedaż lokali komunalnych w tych rejonach, ze względu na agresywne licytacje deweloperów i inwestorów, przynosi miastu znaczne nadwyżki w stosunku do lokalnych benchmarków:
+
+\begin{enumerate}
+  \item \textbf{Stare Miasto:} +466,83 mln PLN (zysku ponad rynek)
+  \item \textbf{Jeżyce:} +376,95 mln PLN
+  \item \textbf{Łazarz:} +358,33 mln PLN
+  \item \textbf{Wilda:} +335,42 mln PLN
+  \item \textbf{Grunwald Południe:} +167,00 mln PLN
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{fig1_ranking_zyski.png}
+  \caption{Ranking osiedli --- największe zyski JST z przetargów (suma nadwyżek ponad cenę rynkową, mln PLN).}
+  \label{fig:ranking_zyski}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{fig2_ranking_straty.png}
+  \caption{Ranking osiedli --- największe straty JST z bonifikat komunalnych (suma udzielonych zniżek poniżej ceny rynkowej, mln PLN).}
+  \label{fig:ranking_straty}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{fig3_bilans_netto.png}
+  \caption{Bilans netto transakcji JST per osiedle (zyski z przetargów minus straty z bonifikat, mln PLN).}
+  \label{fig:bilans_netto}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{fig4_5_mapy_znormalizowane.png}
+  \caption{Mapa intensywności zysków/strat JST --- ważona KDE bonifikat komunalnych (suma strat per lokalizacja).}
+  \label{fig:mapa_straty}
+\end{figure}
+
+Z mapy gęstości (KDE) oraz analizy bilansów wyłania się jasny podział: miasto (jako reprezentant państwa) zarabia na komercyjnej sprzedaży nieruchomości w ścisłym centrum, a uzyskane w ten sposób zyski de facto rozdaje w postaci głębokich bonifikat przy prywatyzacji mieszkań komunalnych na osiedlach peryferyjnych. Oznacza to, że polityka majątkowa JST działa jak mechanizm redystrybucji kapitału z centrum na obrzeża.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Ograniczenia i trudności}
+
+Analiza tak obszernego rejestru publicznego (blisko 200~tys.\ przypadków na wejściu) napotkała szereg strukturalnych ograniczeń, które definiują ,,szklany sufit'' dla algorytmów uczenia maszynowego w badaniu polskiego rynku nieruchomości:
+
+\begin{itemize}
+  \item \textbf{Brak cech jakościowych lokalu:} Rejestr Cen Nieruchomości (RCN) nie zawiera informacji na temat standardu wykończenia. Algorytm nie potrafi odróżnić mieszkania do generalnego remontu od luksusowego apartamentu po \textit{flipie}, mimo że oba mają 50~m², 3~izby i leżą na Jeżycach. To bezpośrednia przyczyna, dla której model XGBoost regularnie niedoszacowuje prestiżowych lokalizacji.
+  \item \textbf{Niejednorodność danych ewidencyjnych:} W aktach notarialnych dla domów, zmienna metrażowa niemal zawsze odnosi się do powierzchni działki, a nie powierzchni użytkowej domu, co całkowicie rujnuje metrykę PLN/m².
+  \item \textbf{Inercja rynkowa a modele predykcyjne:} Choć \texttt{wibor\_3m} wykazał dużą siłę predykcyjną, rynek reaguje na zmiany makroekonomiczne z ok.\ 15-miesięcznym opóźnieniem. Standardowy model z drzewami decyzyjnymi słabo radzi sobie z takimi zakłóceniami, co udowodnił gwałtowny spadek $R^2$ w 2022~roku.
+  \item \textbf{Ukryte operacje nierynkowe:} Pomimo zastosowanych filtrów, w~Rejestrze Cen wciąż znajdują się anomalie w postaci ,,pół-darowizn'' ukrytych pod przykrywką sprzedaży, transakcji wewnątrzrodzinnych z celowo zaniżoną kwotą na akcie notarialnym oraz licytacji komorniczych, których system publiczny nie zdołał wprost oflagować.
+\end{itemize}
+
+Zrozumienie tych ograniczeń pozwala uświadomić sobie, że uczenie maszynowe rewelacyjnie dekoduje twardą, ,,średnią logikę'' rynku i wyłapuje strukturalne anomalie, jednak na polskim rynku nigdy nie zastąpi ono ostatecznej ekspertyzy i fizycznych oględzin nieruchomości przez rzeczoznawcę.
+
+\end{document}

@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Caching & Legacy Local Outputs
+cache/
+.notes/
+.DS_Store
+artifacts_out/
+output/
+
+# Raw Cadastral GIS & Database Dumps (>100MB; excluded from git)
+data/*
+!data/processed/
+!data/processed/*.csv
